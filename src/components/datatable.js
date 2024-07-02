@@ -38,8 +38,14 @@ function DataTable() {
     return '↕';
   };
 
+  const currentData = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * postsPerPage;
+    const endIndex = startIndex + postsPerPage;
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, currentPage, postsPerPage]);
+
   const sortedData = React.useMemo(() => {
-    let sortableItems = [...filteredData];
+    let sortableItems = [...currentData];
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
         if (a[sortConfig.key] < b[sortConfig.key]) {
@@ -52,13 +58,7 @@ function DataTable() {
       });
     }
     return sortableItems;
-  }, [filteredData, sortConfig]);
-
-  const currentData = React.useMemo(() => {
-    const startIndex = (currentPage - 1) * postsPerPage;
-    const endIndex = startIndex + postsPerPage;
-    return sortedData.slice(startIndex, endIndex);
-  }, [sortedData, currentPage, postsPerPage]);
+  }, [currentData, sortConfig]);
 
   const handleSearchChange = (e) => {
     const term = e.target.value;
@@ -109,7 +109,7 @@ function DataTable() {
           </tr>
         </thead>
         <tbody>
-          {currentData.map((todo) => (
+          {sortedData.map((todo) => (
             <tr key={todo.id}>
               <td>{todo.id}</td>
               <td>{todo.title}</td>
