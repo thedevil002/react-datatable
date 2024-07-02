@@ -1,34 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import Graph from '../components/graph.js'; 
+import Graph from '../components/graph.js';
 
 function DataTable() {
   const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'ascending' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [postsPerPage] = useState(11);
-  const [totalPosts, setTotalPosts] = useState(0); 
+  const [postsPerPage] = useState(10);
   const [pageSearchTerm, setPageSearchTerm] = useState('');
 
   useEffect(() => {
-    const fetchTotalPosts = async () => {
+    const fetchData = async () => {
       const response = await axios('https://jsonplaceholder.typicode.com/todos');
-      setTotalPosts(response.data.length);
-    };
-
-    fetchTotalPosts();
-  }, []);
-
-  useEffect(() => {
-    const fetchPosts = async () => {
-      const startIndex = (currentPage - 1) * postsPerPage;
-      const response = await axios(`https://jsonplaceholder.typicode.com/todos?_start=${startIndex}&_limit=${postsPerPage}&_sort=id&_order=asc`);
       setData(response.data);
+      setFilteredData(response.data);
     };
 
-    fetchPosts();
-  }, [currentPage, postsPerPage]);
+    fetchData();
+  }, []);
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -44,11 +35,11 @@ function DataTable() {
     if (sortConfig.key === key) {
       return sortConfig.direction === 'ascending' ? '↑' : '↓';
     }
-    return '↕'; 
+    return '↕';
   };
 
   const sortedData = React.useMemo(() => {
-    let sortableItems = [...data];
+    let sortableItems = [...filteredData];
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
         if (a[sortConfig.key] < b[sortConfig.key]) {
@@ -61,16 +52,28 @@ function DataTable() {
       });
     }
     return sortableItems;
-  }, [data, sortConfig]);
+  }, [filteredData, sortConfig]);
 
-  const filteredData = sortedData.filter(todo =>
-    todo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    todo.id.toString() === searchTerm.trim() ||
-    todo.completed.toString().includes(searchTerm.toLowerCase())
-  );
+  const currentData = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * postsPerPage;
+    const endIndex = startIndex + postsPerPage;
+    return sortedData.slice(startIndex, endIndex);
+  }, [sortedData, currentPage, postsPerPage]);
+
+  const handleSearchChange = (e) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    const filtered = data.filter(todo =>
+      todo.title.toLowerCase().includes(term.toLowerCase()) ||
+      todo.id.toString() === term.trim() ||
+      todo.completed.toString().includes(term.toLowerCase())
+    );
+    setFilteredData(filtered);
+    setCurrentPage(1); 
+  };
 
   const nextPage = () => {
-    if (currentPage < Math.ceil(totalPosts / postsPerPage)) {
+    if (currentPage < Math.ceil(filteredData.length / postsPerPage)) {
       setCurrentPage(prevPage => prevPage + 1);
     }
   };
@@ -83,7 +86,7 @@ function DataTable() {
 
   const handlePageSearch = () => {
     const pageNumber = parseInt(pageSearchTerm, 10);
-    if (!isNaN(pageNumber) && pageNumber > 0 && pageNumber <= Math.ceil(totalPosts / postsPerPage)) {
+    if (!isNaN(pageNumber) && pageNumber > 0 && pageNumber <= Math.ceil(filteredData.length / postsPerPage)) {
       setCurrentPage(pageNumber);
     }
   };
@@ -92,9 +95,9 @@ function DataTable() {
     <div>
       <input
         type="text"
-        placeholder="search by title, id, or completed status"
+        placeholder="Search by title, ID, or completed status"
         value={searchTerm}
-        onChange={e => setSearchTerm(e.target.value)}
+        onChange={handleSearchChange}
         style={{ marginBottom: '10px', padding: '8px' }}
       />
       <table>
@@ -106,7 +109,7 @@ function DataTable() {
           </tr>
         </thead>
         <tbody>
-          {filteredData.map((todo) => (
+          {currentData.map((todo) => (
             <tr key={todo.id}>
               <td>{todo.id}</td>
               <td>{todo.title}</td>
@@ -116,13 +119,13 @@ function DataTable() {
         </tbody>
       </table>
       <div>
-        <button onClick={prevPage} disabled={currentPage === 1}>previous</button>
-        <button onClick={nextPage} disabled={currentPage >= Math.ceil(totalPosts / postsPerPage)}>next</button>
+        <button onClick={prevPage} disabled={currentPage === 1}>Previous</button>
+        <button onClick={nextPage} disabled={currentPage >= Math.ceil(filteredData.length / postsPerPage)}>Next</button>
       </div>
       <div style={{ marginTop: '10px' }}>
         <input
           type="text"
-          placeholder="enter page num"
+          placeholder="Enter page number"
           value={pageSearchTerm}
           onChange={e => setPageSearchTerm(e.target.value)}
           style={{ marginRight: '10px', padding: '8px' }}
@@ -132,7 +135,7 @@ function DataTable() {
       <div style={{ marginTop: '10px' }}>
         Current Page: {currentPage}
       </div>
-      <Graph data={data} />  {}
+      <Graph data={filteredData} />
     </div>
   );
 }
